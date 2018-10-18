@@ -65,7 +65,7 @@ def train(model, train_iter, val_iter, args):
 def train_distil_model(full_model, small_model, train_iter, val_iter, full_model_args, small_model_args):
     full_model_optimizer = torch.optim.Adam(full_model.parameters(), lr = full_model_args.lr)
     small_model_optimizer = torch.optim.Adam(small_model.parameters(), lr = small_model_args.lr)
-    
+
 
 
 # cross_entropy1 = -tf.reduce_mean(y_ * tf.log(tf.clip_by_value(y1, 1e-10, 1.0)))
