@@ -13,7 +13,7 @@ def softmax_cross_entropy_loss(outputs, labels):
     return cross_entropy
 
 def self_softmax(logits, temperature =1):
-    softmax_logits = torch.softmax(logits/temperature)
+    softmax_logits = torch.softmax(logits/temperature, dim = 1)
     return softmax_logits
 
 def get_common_args():
