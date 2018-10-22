@@ -133,6 +133,8 @@ class NewsGroup(BasicDataset):
                     file_path = os.path.join(class_dir_path, file)
                     with open(file_path, errors='ignore') as f:
                         raw_data = f.read()
+                        if len(raw_data.split(' ')) > 100:
+                            continue
                         examples += [data.Example.fromlist([raw_data, class_dir_name], fields)]
         super(NewsGroup, self).__init__(examples, fields, **kwargs)
 

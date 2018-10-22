@@ -71,20 +71,18 @@ def train_distil_model_joint(full_model, small_model, train_iter, val_iter, full
     for epoch in range(1, full_model_args.epochs +1):
         for batch in train_iter:
             (inputs, inputs_length), target = batch.text, batch.label - 1
-            target = torch.zeros(full_model_args.batch_size, full_model_args.class_num).scatter_(1, target, 1)
-
+            # print(inputs)
+            # print(target)
+            target = torch.zeros(full_model_args.batch_size, full_model_args.class_num).scatter_(1, target.view(full_model_args.batch_size, 1), 1)
             full_inputs, full_inputs_length, full_target = inputs, inputs_length, target
             small_inputs, small_inputs_length, small_target = inputs, inputs_length, target
             if full_model_args.cuda and full_model_args.device != -1:
-                full_inputs, full_inputs_length, full_target = inputs.cuda(full_model_args.device), \
-                                                               inputs_length.cuda(full_model_args.device), target.cuda(
-                    full_model_args.device)
+                full_inputs, full_inputs_length, full_target = inputs.cuda(), \
+                                                               inputs_length.cuda(), target.cuda()
 
             if small_model_args.cuda and small_model_args.device != -1:
-                small_inputs, small_inputs_length, small_target = inputs.cuda(small_model_args.device), \
-                                                                  inputs_length.cuda(
-                                                                      small_model_args.device), target.cuda(
-                    small_model_args.device)
+                small_inputs, small_inputs_length, small_target = inputs.cuda(), \
+                                                                  inputs_length.cuda(), target.cuda()
 
             full_model_optimizer.zero_grad()
             small_model_optimizer.zero_grad()
@@ -97,15 +95,17 @@ def train_distil_model_joint(full_model, small_model, train_iter, val_iter, full
             small_model_loss2 = softmax_cross_entropy_loss(self_softmax(small_model_logits, big_temperature),
                                                            full_model_logits)
             small_model_loss = small_model_loss1 + small_model_loss2
-            full_model_loss.backward()
-            small_model_loss.backward()
+            full_model_loss.backward(retain_graph=True)
+            small_model_loss.backward(retain_graph=True)
             full_model_optimizer.step()
             small_model_optimizer.step()
             steps += 1
 
             if steps % full_model_args.log_interval == 0:
-                full_model_corrects = (torch.max(full_model_logits, 1)[1].view(full_target.size()).data == full_target.data).sum()
-                small_model_corrects = (torch.max(small_model_logits, 1)[1].view(small_target.size()).data == small_target.data).sum()
+                full_model_corrects = (
+                            torch.max(full_model_logits, 1)[1].data == torch.max(full_target, 1)[1].data).sum()
+                small_model_corrects = (
+                            torch.max(small_model_logits, 1)[1].data == torch.max(small_target, 1)[1].data).sum()
 
                 full_model_accuracy = 100 * full_model_corrects / batch.batch_size
                 small_model_accuracy = 100 * small_model_corrects / batch.batch_size
@@ -135,18 +135,19 @@ def dev_distil_model_joint(full_model, small_model, val_iter, full_model_args, s
     for batch in val_iter:
 
         (inputs, inputs_length), target = batch.text, batch.label - 1
-        target = torch.zeros(full_model_args.batch_size, full_model_args.class_num).scatter_(1, target, 1)
+        target = torch.zeros(full_model_args.batch_size, full_model_args.class_num).scatter_(1, target.view(
+            full_model_args.batch_size, 1), 1)
 
         full_inputs, full_inputs_length, full_target = inputs, inputs_length, target
         small_inputs, small_inputs_length, small_target = inputs, inputs_length, target
 
         if full_model_args.cuda and full_model_args.device != -1:
-            full_inputs, full_inputs_length, full_target = inputs.cuda(full_model_args.device), \
-                                            inputs_length.cuda(full_model_args.device), target.cuda(full_model_args.device)
+            full_inputs, full_inputs_length, full_target = inputs.cuda(), \
+                                            inputs_length.cuda(), target.cuda()
 
         if small_model_args.cuda and small_model_args.device != -1:
-            small_inputs, small_inputs_length, small_target = inputs.cuda(small_model_args.device), \
-                                            inputs_length.cuda(small_model_args.device), small_model_args.cuda(small_model_args.device)
+            small_inputs, small_inputs_length, small_target = inputs.cuda(), \
+                                            inputs_length.cuda(), small_model_args.cuda()
 
 
         # logit = model(inputs, inputs_length)
@@ -158,13 +159,13 @@ def dev_distil_model_joint(full_model, small_model, val_iter, full_model_args, s
         small_model_loss1 = softmax_cross_entropy_loss(self_softmax(small_model_logits, small_temperature), small_target)
         small_model_loss2 = softmax_cross_entropy_loss(self_softmax(small_model_logits, small_temperature), full_model_logits)
         small_model_loss = small_model_loss1 + small_model_loss2
-        full_model_correct = (torch.max(full_model_logits, 1)[1].view(full_target.size()).data == full_target.data).sum()
-        small_model_correct = (torch.max(small_model_logits, 1)[1].view(small_target.size()).data == small_target.data).sum()
+        full_model_correct = (torch.max(full_model_logits, 1)[1].data == torch.max(full_target, 1)[1].data).sum()
+        small_model_correct = (torch.max(small_model_logits, 1)[1].data == torch.max(small_target, 1)[1].data).sum()
 
-        full_model_avg_loss += full_model_loss.item()
+        full_model_avg_loss += full_model_loss
         full_model_corrects += full_model_correct
 
-        small_model_avg_loss += small_model_loss.item()
+        small_model_avg_loss += small_model_loss
         small_model_corrects += small_model_correct
 
     size = len(val_iter.dataset)
@@ -187,7 +188,7 @@ def dev_distil_model_joint(full_model, small_model, val_iter, full_model_args, s
 
 # cross_entropy1 = -tf.reduce_mean(y_ * tf.log(tf.clip_by_value(y1, 1e-10, 1.0)))
 if __name__ == "__main__":
-    os.environ["CUDA_VISIBLE_DEVICES"] = '0, 1, 2, 3'
+    # os.environ["CUDA_VISIBLE_DEVICES"] = '0, 1, 2, 3'
     # args, unknown = get_common_args()
     # args.device = -1
 
@@ -220,10 +221,8 @@ if __name__ == "__main__":
     small_model = LSTMSelfAttention(args_small_model)
 
     if args_full_model.cuda and args_full_model.device != -1:
-        torch.cuda.set_device(args_full_model.device)
         full_model = full_model.cuda()
     if args_small_model.cuda and args_small_model.device != -1:
-        torch.cuda.set_device(args_small_model.device)
         small_model = small_model.cuda()
 
     train_distil_model_joint(full_model, small_model, train_iter, val_iter, args_full_model, args_small_model)

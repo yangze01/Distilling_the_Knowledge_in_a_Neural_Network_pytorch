@@ -8,12 +8,19 @@ import torch.nn.functional as F
 #res = torch.mean(torch.sum(res, dim=1))
 #t.clamp(a, min=2, max=4)
 
+# def softmax_cross_entropy_loss(outputs, labels):
+#     cross_entropy = torch.mean(labels * torch.clamp(torch.log(outputs), 0, 1))
+#     return cross_entropy
+
 def softmax_cross_entropy_loss(outputs, labels):
-    cross_entropy = torch.mean(labels * torch.clamp(torch.log(outputs), 0, 1))
+    log_value = torch.log(outputs)
+    clamp_value = log_value#lamp(log_value, 0.0, 1.0)
+    cross_entropy = -torch.mean(labels * clamp_value)
     return cross_entropy
 
+
 def self_softmax(logits, temperature =1):
-    softmax_logits = torch.softmax(logits/temperature, dim = 1)
+    softmax_logits = torch.softmax(logits/float(temperature), dim = 1)
     return softmax_logits
 
 def get_common_args():
@@ -28,7 +35,7 @@ def get_common_args():
     # models args
     parser.add_argument("-static", type=bool, default=False, help="fix the embedding [default: False]")
     parser.add_argument("--lr", type=float, default=0.001, help="Learning rate", required=False)
-    parser.add_argument("--batch_size", type=int, default=128, help="Batch size", required=False)
+    parser.add_argument("--batch_size", type=int, default=32, help="Batch size", required=False)
     parser.add_argument('--epochs', type=int, default=256, help='Number of training epochs', required=False)
     parser.add_argument("-add_pretrain_embedding", type=bool, default=False)
 
