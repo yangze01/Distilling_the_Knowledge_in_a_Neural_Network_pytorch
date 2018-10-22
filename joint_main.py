@@ -21,7 +21,7 @@ def train_distil_model_joint(full_model, small_model, train_iter, val_iter, full
             target_view = target.view(batch.batch_size, 1)
 
             target = torch.zeros(batch.batch_size, full_model_args.class_num).scatter_(1, target_view, 1)
-
+#
             if full_model_args.cuda and full_model_args.device != -1:
                 inputs, inputs_length, target = inputs.cuda(), inputs_length.cuda(), target.cuda()
             if steps%2 == 0:
